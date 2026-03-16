@@ -1,0 +1,87 @@
+groups:
+  - name: energy_user_alerts
+    rules:
+
+      # ── Per-user, per-device high power draw ───────────────────────
+      - alert: HighPowerConsumption
+        expr: power_watts > 5000
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High power on {{ $labels.device_name }} ({{ $labels.user_email }})"
+          description: >
+            User {{ $labels.user_email }} [{{ $labels.subscription_tier }}]
+            device {{ $labels.device_name }} ({{ $labels.device_key }})
+            at {{ $labels.location }} is drawing {{ $value }}W
+
+      # ── Voltage out of range ───────────────────────────────────────
+      - alert: VoltageOutOfRange
+        expr: voltage_volts < 210 or voltage_volts > 250
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Voltage out of range — {{ $labels.device_name }} ({{ $labels.user_email }})"
+          description: >
+            {{ $labels.device_name }} owned by {{ $labels.user_email }}
+            reports voltage {{ $value }}V (safe range: 210–250V)
+
+      # ── Device offline (no readings for 5 min) ────────────────────
+      - alert: DeviceOffline
+        expr: (time() - sensor_readings_total) > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Device {{ $labels.device_name }} offline ({{ $labels.user_email }})"
+          description: >
+            No readings received from {{ $labels.device_key }}
+            (owner: {{ $labels.user_email }}, location: {{ $labels.location }})
+            for more than 5 minutes.
+
+      # ── API health ────────────────────────────────────────────────
+      - alert: EnergyAPIDown
+        expr: up{job="energy-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Energy Monitoring API is down"
+          description: "The API has been unreachable for 1 minute — all user data collection stopped."
+
+      # ── Low power factor ─────────────────────────────────────────
+      - alert: LowPowerFactor
+        expr: power_factor < 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low power factor — {{ $labels.device_name }} ({{ $labels.user_email }})"
+          description: >
+            Power factor {{ $value }} on {{ $labels.device_name }}
+            owned by {{ $labels.user_email }} (tier: {{ $labels.subscription_tier }})
+
+      # ── Pro/Enterprise users exceeding daily kWh budget ──────────
+      - alert: HighDailyConsumption
+        expr: increase(energy_consumption_kwh[24h]) > 50
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High daily consumption — {{ $labels.user_email }}"
+          description: >
+            User {{ $labels.user_email }} device {{ $labels.device_name }}
+            has consumed {{ $value }}kWh in the last 24h
+
+      # ── Tier-aware: free users with multiple active devices ───────
+      - alert: FreeTierDeviceOverage
+        expr: user_device_count{subscription_tier="free"} > 1
+        for: 1m
+        labels:
+          severity: info
+        annotations:
+          summary: "Free tier user {{ $labels.user_email }} has too many devices"
+          description: >
+            User {{ $labels.user_email }} on FREE tier has {{ $value }} devices.
+            Limit is 1. Consider enforcing subscription upgrade.

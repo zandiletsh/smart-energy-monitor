@@ -1,0 +1,266 @@
+{
+  "uid": "smart-energy-v1",
+  "title": "Smart Energy Monitor",
+  "description": "Real-time and historical energy monitoring per user and device",
+  "tags": ["energy", "iot"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "user_email",
+        "label": "User",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(power_watts, user_email)",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": false,
+        "current": {}
+      },
+      {
+        "name": "device_key",
+        "label": "Device",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(power_watts{user_email=~\"$user_email\"}, device_key)",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "current": {}
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1, "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+      "type": "stat", "title": "Live Power (W)",
+      "options": { "colorMode": "background", "graphMode": "area", "textMode": "auto" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "steps": [
+            { "color": "green",  "value": null },
+            { "color": "yellow", "value": 2000 },
+            { "color": "red",    "value": 5000 }
+          ]},
+          "unit": "watt"
+        }
+      },
+      "targets": [{
+        "expr": "sum(power_watts{user_email=~\"$user_email\", device_key=~\"$device_key\"})",
+        "legendFormat": "Total Power"
+      }]
+    },
+    {
+      "id": 2, "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
+      "type": "stat", "title": "Total Energy (kWh)",
+      "options": { "colorMode": "value", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "kwatth", "color": { "mode": "fixed", "fixedColor": "blue" } } },
+      "targets": [{
+        "expr": "sum(energy_consumption_kwh{user_email=~\"$user_email\", device_key=~\"$device_key\"})",
+        "legendFormat": "Total kWh"
+      }]
+    },
+    {
+      "id": 3, "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+      "type": "stat", "title": "Voltage (V)",
+      "options": { "colorMode": "background" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "volt",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "steps": [
+            { "color": "red",    "value": null },
+            { "color": "green",  "value": 210 },
+            { "color": "green",  "value": 220 },
+            { "color": "red",    "value": 250 }
+          ]}
+        }
+      },
+      "targets": [{
+        "expr": "avg(voltage_volts{user_email=~\"$user_email\", device_key=~\"$device_key\"})",
+        "legendFormat": "Avg Voltage"
+      }]
+    },
+    {
+      "id": 4, "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
+      "type": "stat", "title": "Power Factor",
+      "options": { "colorMode": "background" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": { "mode": "thresholds" },
+          "thresholds": { "steps": [
+            { "color": "red",    "value": null },
+            { "color": "yellow", "value": 0.8 },
+            { "color": "green",  "value": 0.95 }
+          ]}
+        }
+      },
+      "targets": [{
+        "expr": "avg(power_factor{user_email=~\"$user_email\", device_key=~\"$device_key\"})",
+        "legendFormat": "Power Factor"
+      }]
+    },
+    {
+      "id": 5, "gridPos": { "x": 16, "y": 0, "w": 4, "h": 4 },
+      "type": "stat", "title": "Active Devices",
+      "options": { "colorMode": "value", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "purple" } } },
+      "targets": [{
+        "expr": "count(power_watts{user_email=~\"$user_email\"} > 0)",
+        "legendFormat": "Online Devices"
+      }]
+    },
+    {
+      "id": 6, "gridPos": { "x": 20, "y": 0, "w": 4, "h": 4 },
+      "type": "stat", "title": "Anomalies (24h)",
+      "options": { "colorMode": "background" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "steps": [
+            { "color": "green",  "value": null },
+            { "color": "yellow", "value": 1 },
+            { "color": "red",    "value": 5 }
+          ]}
+        }
+      },
+      "targets": [{
+        "expr": "sum(increase(energy_anomalies_total{user_email=~\"$user_email\"}[24h]))",
+        "legendFormat": "Anomalies"
+      }]
+    },
+    {
+      "id": 10, "gridPos": { "x": 0, "y": 4, "w": 16, "h": 9 },
+      "type": "timeseries", "title": "Power Consumption Over Time (W)",
+      "options": { "tooltip": { "mode": "multi" } },
+      "fieldConfig": {
+        "defaults": { "unit": "watt", "custom": { "lineWidth": 2, "fillOpacity": 15 } }
+      },
+      "targets": [{
+        "expr": "power_watts{user_email=~\"$user_email\", device_key=~\"$device_key\"}",
+        "legendFormat": "{{device_name}} ({{location}})"
+      }]
+    },
+    {
+      "id": 11, "gridPos": { "x": 16, "y": 4, "w": 8, "h": 9 },
+      "type": "gauge", "title": "Current Power per Device",
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdMarkers": true },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watt", "min": 0, "max": 6000,
+          "thresholds": { "steps": [
+            { "color": "green",  "value": null },
+            { "color": "yellow", "value": 3000 },
+            { "color": "red",    "value": 5000 }
+          ]}
+        }
+      },
+      "targets": [{
+        "expr": "power_watts{user_email=~\"$user_email\", device_key=~\"$device_key\"}",
+        "legendFormat": "{{device_name}}"
+      }]
+    },
+    {
+      "id": 20, "gridPos": { "x": 0, "y": 13, "w": 12, "h": 8 },
+      "type": "timeseries", "title": "Voltage Over Time (V)",
+      "fieldConfig": {
+        "defaults": { "unit": "volt", "custom": { "lineWidth": 1 },
+          "thresholds": { "steps": [
+            { "color": "red", "value": null }, { "color": "green", "value": 210 }, { "color": "red", "value": 250 }
+          ]}
+        }
+      },
+      "targets": [{
+        "expr": "voltage_volts{user_email=~\"$user_email\", device_key=~\"$device_key\"}",
+        "legendFormat": "{{device_name}} Phase {{phase}}"
+      }]
+    },
+    {
+      "id": 21, "gridPos": { "x": 12, "y": 13, "w": 12, "h": 8 },
+      "type": "timeseries", "title": "Current Draw (A)",
+      "fieldConfig": { "defaults": { "unit": "amp", "custom": { "lineWidth": 1 } } },
+      "targets": [{
+        "expr": "current_amperes{user_email=~\"$user_email\", device_key=~\"$device_key\"}",
+        "legendFormat": "{{device_name}} Phase {{phase}}"
+      }]
+    },
+    {
+      "id": 30, "gridPos": { "x": 0, "y": 21, "w": 12, "h": 8 },
+      "type": "timeseries", "title": "Energy Consumption (kWh)",
+      "fieldConfig": { "defaults": { "unit": "kwatth", "custom": { "lineWidth": 2, "fillOpacity": 20 } } },
+      "targets": [{
+        "expr": "energy_consumption_kwh{user_email=~\"$user_email\", device_key=~\"$device_key\"}",
+        "legendFormat": "{{device_name}}"
+      }]
+    },
+    {
+      "id": 31, "gridPos": { "x": 12, "y": 21, "w": 12, "h": 8 },
+      "type": "timeseries", "title": "Sensor Temperature (°C)",
+      "fieldConfig": {
+        "defaults": { "unit": "celsius",
+          "thresholds": { "steps": [
+            { "color": "blue", "value": null }, { "color": "green", "value": 20 }, { "color": "orange", "value": 60 }, { "color": "red", "value": 80 }
+          ]}
+        }
+      },
+      "targets": [{
+        "expr": "sensor_temperature_celsius{user_email=~\"$user_email\", device_key=~\"$device_key\"}",
+        "legendFormat": "{{device_name}}"
+      }]
+    },
+    {
+      "id": 40, "gridPos": { "x": 0, "y": 29, "w": 12, "h": 7 },
+      "type": "timeseries", "title": "Reading Rate (per minute)",
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "targets": [{
+        "expr": "rate(sensor_readings_total{user_email=~\"$user_email\", device_key=~\"$device_key\", status=\"success\"}[1m]) * 60",
+        "legendFormat": "{{device_name}} reads/min"
+      }]
+    },
+    {
+      "id": 41, "gridPos": { "x": 12, "y": 29, "w": 12, "h": 7 },
+      "type": "timeseries", "title": "Anomalies Over Time",
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "bars" } } },
+      "targets": [{
+        "expr": "increase(energy_anomalies_total{user_email=~\"$user_email\"}[5m])",
+        "legendFormat": "{{device_name}} — {{anomaly_type}}"
+      }]
+    },
+    {
+      "id": 50, "gridPos": { "x": 0, "y": 36, "w": 8, "h": 6 },
+      "type": "piechart", "title": "Power Distribution by Device",
+      "options": { "pieType": "donut", "displayLabels": ["name", "percent"] },
+      "targets": [{
+        "expr": "power_watts{user_email=~\"$user_email\"}",
+        "legendFormat": "{{device_name}}"
+      }]
+    },
+    {
+      "id": 51, "gridPos": { "x": 8, "y": 36, "w": 8, "h": 6 },
+      "type": "piechart", "title": "Active Users by Subscription Tier",
+      "options": { "pieType": "pie", "displayLabels": ["name", "value"] },
+      "targets": [{
+        "expr": "active_users_total",
+        "legendFormat": "{{subscription_tier}}"
+      }]
+    },
+    {
+      "id": 52, "gridPos": { "x": 16, "y": 36, "w": 8, "h": 6 },
+      "type": "bargauge", "title": "Devices per User",
+      "options": { "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "targets": [{
+        "expr": "user_device_count",
+        "legendFormat": "{{user_email}}"
+      }]
+    }
+  ]
+}
