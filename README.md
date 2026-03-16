@@ -1,6 +1,15 @@
-# &#x20;Smart Energy Monitoring System v3
+# &#x20;Smart Energy Monitoring System 
 
-Complete IoT energy monitoring stack — FastAPI · MongoDB · Prometheus · Grafana
+AI-powered smart energy monitoring system using IoT sensors, cloud infrastructure, and machine learning.
+
+This project combines electrical engineering, cloud computing, and artificial intelligence to build an intelligent energy monitoring system.
+
+Project Goals
+Monitor electricity usage from sensors
+Send data to the cloud
+Store energy data
+Use AI to predict power consumption
+Visualize energy usage on a dashboard
 
 \---
 
